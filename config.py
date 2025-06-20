@@ -22,4 +22,4 @@ class TestConfig(Config):
     
     # BD y Redis de testing desde variables de entorno
     SQLALCHEMY_DATABASE_URI = os.environ.get('TEST_DATABASE_URL') or \
-        'postgresql+psycopg://postgres:admin@localhost:5432/biblioteca_test'
+        'postgresql+psycopg://postgres:admin@localhost:5432/inventario_test'
