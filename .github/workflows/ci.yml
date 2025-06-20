@@ -10,94 +10,87 @@ on:
 
 jobs:
   build_test_scan:
-    runs-on: ubuntu-latest # Ejecuta el job en una máquina virtual Ubuntu
+    runs-on: ubuntu-latest
 
     services:
-      # Define el servicio de PostgreSQL para las pruebas de integración
       postgres:
-        image: postgres:13 # Utiliza una imagen oficial de PostgreSQL
+        image: postgres:13
         env:
           POSTGRES_DB: inventario_test
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: admin
         ports:
-          - 5432:5432 # Mapea el puerto 5432 del host (runner) al puerto 5432 del contenedor
+          - 5432:5432
         options: >-
           --health-cmd "pg_isready -U postgres -d inventario_test"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
+
     steps:
-    - name: Checkout Código # Paso para clonar el repositorio
+    - name: Checkout Código
       uses: actions/checkout@v4
 
-    - name: Configurar Python # Paso para configurar el entorno Python
+    - name: Configurar Python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.9' # Utiliza la versión de Python 3.9
+        python-version: '3.9'
 
-    - name: Instalar Dependencias # Instala las dependencias del proyecto y de las herramientas
+    - name: Instalar Dependencias
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
-    - name: Instalar Chrome y Xvfb para Tests UI # Instala el navegador Google Chrome y Xvfb para un entorno de pantalla virtual (headless)
+    - name: Instalar Chrome y Xvfb para Tests UI
       run: |
         sudo apt-get update
-        sudo apt-get install -y google-chrome-stable xvfb # Instala Chrome estable y Xvfb
+        sudo apt-get install -y google-chrome-stable xvfb
 
-    - name: Configurar Entorno de DB para Tests # Prepara la base de datos de PostgreSQL para los tests de integración
+    - name: Configurar Entorno de DB para Tests
       env:
         TEST_DATABASE_URL: postgresql+psycopg://postgres:admin@localhost:5432/inventario_test
         FLASK_APP: app 
       run: |
         echo "Esperando que la base de datos de PostgreSQL esté lista..."
-        # Espera activa por la disponibilidad de PostgreSQL usando pg_isready
         until pg_isready -h localhost -p 5432 -U postgres -d inventario_test; do
           echo "La base de datos no está lista aún, esperando 1 segundo..."
           sleep 1
         done
         echo "Base de datos lista."
         
-        # Ejecutar migraciones de la base de datos de pruebas para crear el esquema
         echo "Ejecutando migraciones de base de datos para tests..."
         flask db upgrade
 
-    - name: Ejecutar Tests Unitarios # Ejecuta los tests unitarios (usan SQLite en memoria por defecto)
+    - name: Ejecutar Tests Unitarios
       run: |
         pytest tests/test_unit/
 
-    - name: Ejecutar Tests de Integración # Ejecuta los tests de integración (usan PostgreSQL)
+    - name: Ejecutar Tests de Integración
       env:
-        # Pasar la TEST_DATABASE_URL como variable de entorno al runner para que los tests la usen.
         TEST_DATABASE_URL: postgresql+psycopg://postgres:admin@localhost:5432/inventario_test
         FLASK_APP: app 
       run: |
         pytest tests/integration/
 
-    - name: Ejecutar Tests UI (Selenium con Chrome) # Ejecuta los tests de interfaz de usuario
+    - name: Ejecutar Tests UI (Selenium con Chrome)
       env:
-        # Pasa la TEST_DATABASE_URL como variable de entorno al runner para que el servidor Flask del fixture la use.
         TEST_DATABASE_URL: postgresql+psycopg://postgres:admin@localhost:5432/inventario_test
-        FLASK_APP: app # Asegura que la app se cargue correctamente
-        # Configuración de DISPLAY para Xvfb para que Chrome se ejecute en un entorno virtual de pantalla.
-        DISPLAY: ':99' # Define un número de display para Xvfb
+        FLASK_APP: app
+        DISPLAY: ':99'
       run: |
-        # Inicia Xvfb en segundo plano en el display definido
         Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
-        # Ejecuta pytest con los tests UI
         pytest tests/ui/
 
-    - name: Análisis Estático de Código (Bandit) # Ejecuta Bandit para seguridad estática
+    - name: Análisis Estático de Código (Bandit)
       run: |
         bandit -r app/
 
-    - name: Análisis de Vulnerabilidades de Dependencias (Safety) # Ejecuta Safety para dependencias
+    - name: Análisis de Vulnerabilidades de Dependencias (Safety)
       run: |
         safety check
 
-    - name: Verificación de Despliegue # Mensaje final si todos los pasos anteriores fueron exitosos
-      if: success() # Este paso solo se ejecuta si todos los anteriores han pasado
+    - name: Verificación de Despliegue
+      if: success()
       run: |
         echo "Todos los tests pasaron correctamente."
         echo "El código está listo para ser desplegado."
