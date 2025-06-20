@@ -16,6 +16,7 @@ dist/
 build/
 *.so
 bin
+lib
 
 # Variables de entorno
 .env
