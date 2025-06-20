@@ -52,8 +52,8 @@ jobs:
         FLASK_APP: app 
       run: |
         echo "Esperando que la base de datos de PostgreSQL esté lista..."
-        # Espera activa por la disponibilidad de PostgreSQL. Se conecta usando psycopg para verificar.
-        until python -c "import psycopg, os; psycopg.connect(os.environ['TEST_DATABASE_URL']); print('Conexión exitosa a DB')"; do
+        # Espera activa por la disponibilidad de PostgreSQL usando pg_isready
+        until pg_isready -h localhost -p 5432 -U postgres -d inventario_test; do
           echo "La base de datos no está lista aún, esperando 1 segundo..."
           sleep 1
         done
