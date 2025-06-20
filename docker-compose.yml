@@ -1,0 +1,32 @@
+# docker-compose.yml
+version: '3.8' # Especifica la versión de Docker Compose
+
+services:
+  web: 
+    build: .
+    ports:
+      - "5000:5000" # Mapea el puerto 5000 del host al puerto 5000 del contenedor
+    env_file: 
+      - ./.env
+    environment:
+      FLASK_APP: app 
+    depends_on:
+      - db # Asegura que el servicio 'db' se inicie antes que 'web'
+    volumes:
+    
+      - .:/app
+
+  db: # Define un servicio para la base de datos PostgreSQL
+    image: postgres:13 
+    environment:
+      
+      POSTGRES_DB: inventario
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: admin
+    ports:
+      - "5432:5432" 
+    volumes:
+      - pg_data:/var/lib/postgresql/data 
+
+volumes:
+  pg_data: 

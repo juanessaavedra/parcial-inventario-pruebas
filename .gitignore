@@ -1,0 +1,39 @@
+# Archivos y directorios de Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.coverage
+.mypy_cache/
+.tox/
+dist/
+build/
+*.so
+bin
+
+# Variables de entorno
+.env
+
+
+# Datos de PostgreSQL (volumen de Docker)
+pg_data/
+
+# Archivos de registro
+*.log
+logs/
+
+# Archivos de IDEs
+.vscode/           # VS Code
+
+# Archivos temporales del sistema operativo
+.DS_Store          
+
+
+bandit_report.json
+safety_report.json

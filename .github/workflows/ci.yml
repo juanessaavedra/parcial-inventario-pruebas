@@ -1,0 +1,103 @@
+# .github/workflows/ci.yml
+name: Pipeline de inventario
+
+on:
+  push:
+    branches:
+      - main 
+  pull_request:
+    branches:
+      - main 
+
+jobs:
+  build_test_scan:
+    runs-on: ubuntu-latest # Ejecuta el job en una máquina virtual Ubuntu
+
+    services:
+      postgres:
+        image: postgres:13 # Utiliza una imagen oficial de PostgreSQL
+        env:
+          POSTGRES_DB: inventario_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: admin
+        ports:
+          - 5432:5432 # Mapea el puerto 5432 del host (runner) al puerto 5432 del contenedor
+        options: >-
+          --health-cmd pg_isready -U postgres -d inventario_test
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10 # Aumentar reintentos para mayor robustez
+
+    steps:
+    - name: Checkout Código # Paso para clonar el repositorio
+      uses: actions/checkout@v4
+
+    - name: Configurar Python 
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.9' #
+
+    - name: Instalar Dependencias # Instala las dependencias del proyecto y de las herramientas
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Instalar Chrome y Xvfb para Tests UI # Instala el navegador Google Chrome y Xvfb para un entorno de pantalla virtual (headless)
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y google-chrome-stable xvfb # Instala Chrome estable y Xvfb
+
+    - name: Configurar Entorno de DB para Tests 
+      env:
+      
+        TEST_DATABASE_URL: postgresql+psycopg://postgres:admin@localhost:5432/inventario_test
+        FLASK_APP: app # Necesario para los comandos 'flask db'
+      run: |
+        echo "Esperando que la base de datos de PostgreSQL esté lista..."
+        # Espera activa por la disponibilidad de PostgreSQL. Se conecta usando psycopg2 para verificar.
+        until python -c "import psycopg2; import os; try: psycopg2.connect(os.environ['TEST_DATABASE_URL']); print('Conexión exitosa a DB'); exit(0) except psycopg2.OperationalError as e: print(f'Error de conexión: {e}'); exit(1)"; do
+          echo "La base de datos no está lista aún, esperando 1 segundo..."
+          sleep 1
+        done
+        echo "Base de datos lista."
+        
+        # Ejecutar migraciones de la base de datos de pruebas para crear el esquema
+        echo "Ejecutando migraciones de base de datos para tests..."
+        flask db upgrade
+
+    - name: Ejecutar Tests Unitarios # Ejecuta los tests unitarios (usan SQLite en memoria por defecto)
+      run: |
+        pytest tests/test_unit/
+
+    - name: Ejecutar Tests de Integración 
+      env:
+        TEST_DATABASE_URL: postgresql+psycopg://postgres:admin@localhost:5432/inventario_test
+        FLASK_APP: app 
+      run: |
+        pytest tests/integration/
+
+    - name: Ejecutar Tests UI (Selenium con Chrome) # Ejecuta los tests de interfaz de usuario
+      env:
+        
+        TEST_DATABASE_URL: postgresql+psycopg://postgres:admin@localhost:5432/inventario_test
+        FLASK_APP: app 
+        DISPLAY: ':99'
+      run: |
+        # Inicia Xvfb en segundo plano en el display definido
+        Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
+        # Ejecuta pytest con los tests UI
+        pytest tests/ui/
+
+    - name: Análisis Estático de Código (Bandit) # Ejecuta Bandit para seguridad estática
+      run: |
+        bandit -r app/
+
+    - name: Análisis de Vulnerabilidades de Dependencias (Safety) # Ejecuta Safety para dependencias
+      run: |
+        safety check
+
+    - name: Verificación de Despliegue 
+      if: success() 
+      run: |
+        echo "Todos los tests pasaron correctamente."
+        echo "El código está listo para ser desplegado."

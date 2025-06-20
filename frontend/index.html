@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Inventario</title>
+    <style>
+        /* ===== ESTILOS CSS PARA LA INTERFAZ ===== */
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        /* Cada sección es una caja blanca con sombra */
+        .section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        h2 {
+            color: #555;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 10px;
+        }
+        /* Los formularios tienen campos organizados verticalmente */
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-width: 400px;
+        }
+        input, select, button {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        /* Botones azules que cambian al pasar el mouse */
+        button {
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        /* Botón verde para actualizar listas */
+        .refresh-btn {
+            background-color: #28a745;
+            margin-bottom: 10px;
+            max-width: 150px;
+        }
+        /* Botón naranja para stock */
+        .stock-btn {
+            background-color: #fd7e14;
+            max-width: 200px;
+        }
+        /* Estilo para mostrar cada elemento */
+        .item {
+            background: #f8f9fa;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+            border-left: 4px solid #007bff;
+        }
+        /* Mensajes de éxito (verde) */
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        /* Mensajes de error (rojo) */
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        /* Productos tienen fondo azul claro */
+        .producto-item {
+            border-left-color: #17a2b8;
+            background: #d1ecf1;
+        }
+        /* Categorías tienen fondo verde claro */
+        .categoria-item {
+            border-left-color: #28a745;
+            background: #d4edda;
+        }
+        /* Stock bajo tiene fondo rojo claro */
+        .stock-bajo {
+            border-left-color: #dc3545;
+            background: #f8d7da;
+        }
+        /* Filtros en línea */
+        .filtros {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        .filtros select {
+            max-width: 200px;
+        }
+        /* Grid para mostrar productos */
+        .productos-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+        }
+        /* Acciones en cada item */
+        .item-actions {
+            margin-top: 10px;
+            display: flex;
+            gap: 10px;
+        }
+        .btn-small {
+            padding: 5px 10px;
+            font-size: 12px;
+            max-width: auto;
+        }
+        .btn-danger {
+            background-color: #dc3545;
+        }
+        .btn-danger:hover {
+            background-color: #c82333;
+        }
+        .btn-warning {
+            background-color: #ffc107;
+            color: #212529;
+        }
+        .btn-warning:hover {
+            background-color: #e0a800;
+        }
+    </style>
+</head>
+<body>
+    <h1>📦 Sistema de Gestión de Inventario</h1>
+
+    <!-- ===== SECCIÓN 1: CREAR CATEGORÍA ===== -->
+    <div class="section">
+        <h2>📂 Crear Categoría</h2>
+        <form id="formCategoria">
+            <input type="text" id="nombreCategoria" placeholder="Nombre de la categoría" required>
+            <input type="text" id="categoriaDescripcion" placeholder="Descripción" required>
+            <button type="submit">Crear Categoría</button>
+        </form>
+        <div id="mensajeCategoria"></div>
+    </div>
+
+    <!-- ===== SECCIÓN 2: MOSTRAR CATEGORÍAS ===== -->
+    <div class="section">
+        <h2>📋 Todas las Categorías</h2>
+        <button class="refresh-btn" onclick="cargarCategorias()">🔄 Actualizar</button>
+        <div id="categoriasLista"></div>
+    </div>
+
+    <!-- ===== SECCIÓN 3: AGREGAR PRODUCTO ===== -->
+    <div class="section">
+        <h2>📦 Agregar Producto</h2>
+        <form id="formProducto">
+            <input type="text" id="nombreProducto" placeholder="Nombre del producto" required>
+            <select id="categoriaProducto" required>
+                <option value="">Seleccionar categoría</option>
+            </select>
+            <input type="number" id="precioProducto" placeholder="Precio" step="0.01" min="0" required>
+            <input type="number" id="stockProducto" placeholder="Stock inicial" min="0" required>
+            <button type="submit">Agregar Producto</button>
+        </form>
+        <div id="mensajeProducto"></div>
+    </div>
+
+    <!-- ===== SECCIÓN 4: MOSTRAR PRODUCTOS CON FILTROS ===== -->
+    <div class="section">
+        <h2>📦 Lista de Productos</h2>
+        <div class="filtros">
+            <button class="refresh-btn" onclick="cargarProductos()">🔄 Actualizar</button>
+            <select id="filtroCategoria" onchange="filtrarProductos()">
+                <option value="">Todas las categorías</option>
+            </select>
+            <button class="stock-btn" onclick="cargarProductosStockBajo()">⚠️ Ver Stock Bajo</button>
+        </div>
+        <div id="productosLista" class="productos-grid"></div>
+    </div>
+
+    <!-- ===== SECCIÓN 5: ACTUALIZAR STOCK ===== -->
+    <div class="section">
+        <h2>📊 Actualizar Stock</h2>
+        <p><strong>Instrucciones:</strong> Selecciona un producto y ajusta su stock</p>
+        <form id="formStock">
+            <select id="productoStock" required>
+                <option value="">Seleccionar producto</option>
+            </select>
+            <div style="display: flex; gap: 10px;">
+                <input type="number" id="cantidadStock" placeholder="Cantidad" required>
+                <select id="tipoMovimiento" required>
+                    <option value="entrada">➕ Entrada (Agregar)</option>
+                    <option value="salida">➖ Salida (Restar)</option>
+                    <option value="ajuste">🔄 Ajustar a cantidad exacta</option>
+                </select>
+            </div>
+            <button type="submit">Actualizar Stock</button>
+        </form>
+        <div id="mensajeStock"></div>
+    </div>
+
+    <!-- ===== SECCIÓN 6: PRODUCTOS CON STOCK BAJO ===== -->
+    <div class="section">
+        <h2>⚠️ Productos con Stock Bajo</h2>
+        <p>Productos con menos de 10 unidades en stock</p>
+        <button class="refresh-btn" onclick="cargarProductosStockBajo()">🔄 Actualizar</button>
+        <div id="stockBajoLista"></div>
+    </div>
+
+    <script>
+        // ===== CONFIGURACIÓN PRINCIPAL =====
+        const API_BASE = 'http://127.0.0.1:5000';
+
+        // Variables globales para almacenar datos
+        let categoriasData = [];
+        let productosData = [];
+
+        // ===== FUNCIÓN AUXILIAR PARA MOSTRAR MENSAJES =====
+        function mostrarMensaje(elementId, mensaje, tipo = 'success') {
+            const elemento = document.getElementById(elementId);
+            elemento.innerHTML = `<div class="${tipo}">${mensaje}</div>`;
+            setTimeout(() => elemento.innerHTML = '', 4000);
+        }
+
+        // ===== CREAR CATEGORÍA =====
+        document.getElementById('formCategoria').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const data = {
+                nombre: document.getElementById('nombreCategoria').value,
+                descripcion: document.getElementById('categoriaDescripcion').value
+            };
+
+            try {
+                const response = await fetch(`${API_BASE}/categorias`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    mostrarMensaje('mensajeCategoria', '✅ Categoría creada exitosamente');
+                    document.getElementById('formCategoria').reset();
+                    cargarCategorias();
+                    actualizarSelectsCategorias();
+                } else {
+                    const error = await response.json();
+                    mostrarMensaje('mensajeCategoria', `❌ Error: ${error.error}`, 'error');
+                }
+            } catch (error) {
+                mostrarMensaje('mensajeCategoria', `❌ Error: ${error.message}`, 'error');
+            }
+        });
+
+        // ===== AGREGAR PRODUCTO =====
+        document.getElementById('formProducto').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const data = {
+                nombre: document.getElementById('nombreProducto').value,
+                categoria_id: parseInt(document.getElementById('categoriaProducto').value),
+                precio: parseFloat(document.getElementById('precioProducto').value),
+                stock: parseInt(document.getElementById('stockProducto').value)
+            };
+
+            try {
+                const response = await fetch(`${API_BASE}/productos`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    mostrarMensaje('mensajeProducto', '✅ Producto agregado exitosamente');
+                    document.getElementById('formProducto').reset();
+                    cargarProductos();
+                    actualizarSelectsProductos();
+                } else {
+                    const error = await response.json();
+                    mostrarMensaje('mensajeProducto', `❌ Error: ${error.error}`, 'error');
+                }
+            } catch (error) {
+                mostrarMensaje('mensajeProducto', `❌ Error: ${error.message}`, 'error');
+            }
+        });
+
+        // ===== ACTUALIZAR STOCK =====
+        document.getElementById('formStock').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const productoId = document.getElementById('productoStock').value;
+            const cantidad = parseInt(document.getElementById('cantidadStock').value);
+            const tipoMovimiento = document.getElementById('tipoMovimiento').value;
+            
+            // Encontrar el producto actual
+            const productoActual = productosData.find(p => p.id == productoId);
+            if (!productoActual) return;
+
+            let nuevoStock;
+            switch(tipoMovimiento) {
+                case 'entrada':
+                    nuevoStock = productoActual.stock + cantidad;
+                    break;
+                case 'salida':
+                    nuevoStock = Math.max(0, productoActual.stock - cantidad);
+                    break;
+                case 'ajuste':
+                    nuevoStock = cantidad;
+                    break;
+            }
+
+            const data = { stock: nuevoStock };
+
+            try {
+                const response = await fetch(`${API_BASE}/productos/${productoId}`, {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    mostrarMensaje('mensajeStock', `✅ Stock actualizado exitosamente (${productoActual.stock} → ${nuevoStock})`);
+                    document.getElementById('formStock').reset();
+                    cargarProductos();
+                    cargarProductosStockBajo();
+                } else {
+                    const error = await response.json();
+                    mostrarMensaje('mensajeStock', `❌ Error: ${error.error}`, 'error');
+                }
+            } catch (error) {
+                mostrarMensaje('mensajeStock', `❌ Error: ${error.message}`, 'error');
+            }
+        });
+
+        // ===== CARGAR CATEGORÍAS =====
+        async function cargarCategorias() {
+            const container = document.getElementById('categoriasLista');
+            
+            try {
+                const response = await fetch(`${API_BASE}/categorias`);
+                categoriasData = await response.json();
+                
+                if (categoriasData.length === 0) {
+                    container.innerHTML = '<p>No hay categorías disponibles</p>';
+                } else {
+                    container.innerHTML = categoriasData.map(categoria => `
+                        <div class="item categoria-item">
+                            <strong>ID: ${categoria.id}</strong> - ${categoria.nombre}<br>
+                            <small>Descripción: ${categoria.descripcion}</small>
+                            <div class="item-actions">
+                                <button class="btn-small btn-danger" onclick="eliminarCategoria(${categoria.id})">🗑️ Eliminar</button>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            } catch (error) {
+                container.innerHTML = `<p class="error">Error al cargar categorías: ${error.message}</p>`;
+            }
+        }
+
+        // ===== CARGAR PRODUCTOS =====
+        async function cargarProductos() {
+            const container = document.getElementById('productosLista');
+            
+            try {
+                const response = await fetch(`${API_BASE}/productos`);
+                productosData = await response.json();
+                
+                mostrarProductos(productosData);
+            } catch (error) {
+                container.innerHTML = `<p class="error">Error al cargar productos: ${error.message}</p>`;
+            }
+        }
+
+        // ===== MOSTRAR PRODUCTOS =====
+        function mostrarProductos(productos) {
+            const container = document.getElementById('productosLista');
+            
+            if (productos.length === 0) {
+                container.innerHTML = '<p>No hay productos disponibles</p>';
+                return;
+            }
+
+            container.innerHTML = productos.map(producto => {
+                const categoria = categoriasData.find(c => c.id === producto.categoria_id);
+                const stockClass = producto.stock < 10 ? 'stock-bajo' : 'producto-item';
+                
+                return `
+                    <div class="item ${stockClass}">
+                        <strong>${producto.nombre}</strong><br>
+                        <small>ID: ${producto.id} | Categoría: ${categoria ? categoria.nombre : 'Sin categoría'}</small><br>
+                        <strong>Precio: $${producto.precio}</strong><br>
+                        <strong>Stock: ${producto.stock} unidades</strong>
+                        ${producto.stock < 10 ? '<br><span style="color: #dc3545;">⚠️ Stock bajo</span>' : ''}
+                        <div class="item-actions">
+                            <button class="btn-small btn-warning" onclick="editarProducto(${producto.id})">✏️ Editar</button>
+                            <button class="btn-small btn-danger" onclick="eliminarProducto(${producto.id})">🗑️ Eliminar</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // ===== FILTRAR PRODUCTOS POR CATEGORÍA =====
+        function filtrarProductos() {
+            const categoriaSeleccionada = document.getElementById('filtroCategoria').value;
+            
+            if (!categoriaSeleccionada) {
+                mostrarProductos(productosData);
+            } else {
+                const productosFiltrados = productosData.filter(p => p.categoria_id == categoriaSeleccionada);
+                mostrarProductos(productosFiltrados);
+            }
+        }
+
+        // ===== CARGAR PRODUCTOS CON STOCK BAJO =====
+        async function cargarProductosStockBajo() {
+            const container = document.getElementById('stockBajoLista');
+            
+            try {
+                const response = await fetch(`${API_BASE}/productos/stock`);
+                const productosStockBajo = await response.json();
+                
+                if (productosStockBajo.length === 0) {
+                    container.innerHTML = '<p>✅ Todos los productos tienen stock suficiente</p>';
+                } else {
+                    container.innerHTML = productosStockBajo.map(producto => {
+                        const categoria = categoriasData.find(c => c.id === producto.categoria_id);
+                        return `
+                            <div class="item stock-bajo">
+                                <strong>⚠️ ${producto.nombre}</strong><br>
+                                <small>ID: ${producto.id} | Categoría: ${categoria ? categoria.nombre : 'Sin categoría'}</small><br>
+                                <strong>Stock actual: ${producto.stock} unidades</strong><br>
+                                <strong>Precio: $${producto.precio}</strong>
+                            </div>
+                        `;
+                    }).join('');
+                }
+            } catch (error) {
+                container.innerHTML = `<p class="error">Error al cargar productos con stock bajo: ${error.message}</p>`;
+            }
+        }
+
+        // ===== ACTUALIZAR SELECTS DE CATEGORÍAS =====
+        async function actualizarSelectsCategorias() {
+            if (categoriasData.length === 0) {
+                await cargarCategorias();
+            }
+            
+            const selects = ['categoriaProducto', 'filtroCategoria'];
+            selects.forEach(selectId => {
+                const select = document.getElementById(selectId);
+                const valorActual = select.value;
+                
+                // Limpiar opciones actuales (excepto la primera)
+                while (select.children.length > 1) {
+                    select.removeChild(select.lastChild);
+                }
+                
+                // Agregar nuevas opciones
+                categoriasData.forEach(categoria => {
+                    const option = document.createElement('option');
+                    option.value = categoria.id;
+                    option.textContent = categoria.nombre;
+                    select.appendChild(option);
+                });
+                
+                // Restaurar valor si existía
+                select.value = valorActual;
+            });
+        }
+
+        // ===== ACTUALIZAR SELECT DE PRODUCTOS =====
+        async function actualizarSelectsProductos() {
+            if (productosData.length === 0) {
+                await cargarProductos();
+            }
+            
+            const select = document.getElementById('productoStock');
+            const valorActual = select.value;
+            
+            // Limpiar opciones actuales (excepto la primera)
+            while (select.children.length > 1) {
+                select.removeChild(select.lastChild);
+            }
+            
+            // Agregar nuevas opciones
+            productosData.forEach(producto => {
+                const categoria = categoriasData.find(c => c.id === producto.categoria_id);
+                const option = document.createElement('option');
+                option.value = producto.id;
+                option.textContent = `${producto.nombre} (Stock: ${producto.stock}) - ${categoria ? categoria.nombre : 'Sin categoría'}`;
+                select.appendChild(option);
+            });
+            
+            // Restaurar valor si existía
+            select.value = valorActual;
+        }
+
+        // ===== ELIMINAR CATEGORÍA =====
+        async function eliminarCategoria(id) {
+            if (!confirm('¿Estás seguro de que quieres eliminar esta categoría?')) return;
+            
+            try {
+                const response = await fetch(`${API_BASE}/categorias/${id}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    mostrarMensaje('mensajeCategoria', '✅ Categoría eliminada exitosamente');
+                    cargarCategorias();
+                    actualizarSelectsCategorias();
+                } else {
+                    const error = await response.json();
+                    alert(`Error: ${error.error}`);
+                }
+            } catch (error) {
+                alert(`Error: ${error.message}`);
+            }
+        }
+
+        // ===== ELIMINAR PRODUCTO =====
+        async function eliminarProducto(id) {
+            if (!confirm('¿Estás seguro de que quieres eliminar este producto?')) return;
+            
+            try {
+                const response = await fetch(`${API_BASE}/productos/${id}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    mostrarMensaje('mensajeProducto', '✅ Producto eliminado exitosamente');
+                    cargarProductos();
+                    actualizarSelectsProductos();
+                    cargarProductosStockBajo();
+                } else {
+                    const error = await response.json();
+                    alert(`Error: ${error.error}`);
+                }
+            } catch (error) {
+                alert(`Error: ${error.message}`);
+            }
+        }
+
+        // ===== EDITAR PRODUCTO (función placeholder) =====
+        function editarProducto(id) {
+            const producto = productosData.find(p => p.id === id);
+            if (producto) {
+                const nuevoNombre = prompt('Nuevo nombre:', producto.nombre);
+                const nuevoPrecio = prompt('Nuevo precio:', producto.precio);
+                
+                if (nuevoNombre && nuevoPrecio) {
+                    actualizarProducto(id, {
+                        nombre: nuevoNombre,
+                        precio: parseFloat(nuevoPrecio)
+                    });
+                }
+            }
+        }
+
+        // ===== ACTUALIZAR PRODUCTO =====
+        async function actualizarProducto(id, data) {
+            try {
+                const response = await fetch(`${API_BASE}/productos/${id}`, {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data)
+                });
+                
+                if (response.ok) {
+                    mostrarMensaje('mensajeProducto', '✅ Producto actualizado exitosamente');
+                    cargarProductos();
+                } else {
+                    const error = await response.json();
+                    alert(`Error: ${error.error}`);
+                }
+            } catch (error) {
+                alert(`Error: ${error.message}`);
+            }
+        }
+
+        // ===== INICIALIZACIÓN =====
+        window.addEventListener('load', async () => {
+            await cargarCategorias();
+            await cargarProductos();
+            await actualizarSelectsCategorias();
+            await actualizarSelectsProductos();
+            cargarProductosStockBajo();
+        });
+    </script>
+</body>
+</html>
