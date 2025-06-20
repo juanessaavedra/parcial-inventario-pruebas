@@ -48,23 +48,23 @@ jobs:
 
     - name: Configurar Entorno de DB para Tests # Prepara la base de datos de PostgreSQL para los tests de integración
       env:
-        
         TEST_DATABASE_URL: postgresql+psycopg://postgres:admin@localhost:5432/inventario_test
         FLASK_APP: app 
       run: |
         echo "Esperando que la base de datos de PostgreSQL esté lista..."
         # Espera activa por la disponibilidad de PostgreSQL. Se conecta usando psycopg2 para verificar.
-        # FIX: Se usa un bloque de código Python multilínea con aspas triples para corregir la sintaxis.
-        until python -c """
-          import psycopg2, os, sys;
-          try:
-            psycopg2.connect(os.environ['TEST_DATABASE_URL']);
-            print('Conexión exitosa a DB');
-            sys.exit(0)
-          except psycopg2.OperationalError as e:
-            print(f'Error de conexión: {e}');
-            sys.exit(1)
-        """; do
+        until python -c "
+import psycopg2
+import os
+import sys
+try:
+    psycopg2.connect(os.environ['TEST_DATABASE_URL'])
+    print('Conexión exitosa a DB')
+    sys.exit(0)
+except psycopg2.OperationalError as e:
+    print(f'Error de conexión: {e}')
+    sys.exit(1)
+        "; do
           echo "La base de datos no está lista aún, esperando 1 segundo..."
           sleep 1
         done
