@@ -1,12 +1,12 @@
-name: CI/CD Pipeline de Inventario
+name: Pipeline de Inventario
 
 on:
   push:
     branches:
-      - main # Ejecuta el workflow en cada push a la rama 'main'
+      - main 
   pull_request:
     branches:
-      - main # Ejecuta el workflow en cada pull request a la rama 'main'
+      - main 
 
 jobs:
   build_test_scan:
@@ -17,17 +17,17 @@ jobs:
       postgres:
         image: postgres:13 # Utiliza una imagen oficial de PostgreSQL
         env:
-          
+         
           POSTGRES_DB: inventario_test
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: admin
         ports:
           - 5432:5432 # Mapea el puerto 5432 del host (runner) al puerto 5432 del contenedor
         options: >-
-          --health-cmd pg_isready -U postgres -d inventario_test
+          --health-cmd "pg_isready -U postgres -d inventario_test" # Envuelto el comando entre comillas dobles
           --health-interval 5s
           --health-timeout 5s
-          --health-retries 10 # Se ha quitado el comentario inline aquí
+          --health-retries 10
     steps:
     - name: Checkout Código # Paso para clonar el repositorio
       uses: actions/checkout@v4
@@ -35,21 +35,22 @@ jobs:
     - name: Configurar Python # Paso para configurar el entorno Python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.9' 
+        python-version: '3.9' # Utiliza la versión de Python 3.9
 
     - name: Instalar Dependencias # Instala las dependencias del proyecto y de las herramientas
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
-    - name: Instalar Chrome y Xvfb para Tests UI 
+    - name: Instalar Chrome y Xvfb para Tests UI # Instala el navegador Google Chrome y Xvfb para un entorno de pantalla virtual (headless)
       run: |
         sudo apt-get update
         sudo apt-get install -y google-chrome-stable xvfb # Instala Chrome estable y Xvfb
 
-    - name: Configurar Entorno de DB para Tests 
+    - name: Configurar Entorno de DB para Tests # Prepara la base de datos de PostgreSQL para los tests de integración
       env:
-        
+        # Pasa la TEST_DATABASE_URL directamente como variable de entorno al runner
+        # Esta variable será leída por tu config.py.
         TEST_DATABASE_URL: postgresql+psycopg://postgres:admin@localhost:5432/inventario_test
         FLASK_APP: app # Necesario para los comandos 'flask db'
       run: |
@@ -79,7 +80,7 @@ jobs:
 
     - name: Ejecutar Tests UI (Selenium con Chrome) # Ejecuta los tests de interfaz de usuario
       env:
-       
+        # Pasa la TEST_DATABASE_URL como variable de entorno al runner para que el servidor Flask del fixture la use.
         TEST_DATABASE_URL: postgresql+psycopg://postgres:admin@localhost:5432/inventario_test
         FLASK_APP: app # Asegura que la app se cargue correctamente
         # Configuración de DISPLAY para Xvfb para que Chrome se ejecute en un entorno virtual de pantalla.
@@ -101,5 +102,5 @@ jobs:
     - name: Verificación de Despliegue # Mensaje final si todos los pasos anteriores fueron exitosos
       if: success() # Este paso solo se ejecuta si todos los anteriores han pasado
       run: |
-        echo "Todos los tests pasaron correctamente."
+        echo "✅ Todos los tests pasaron correctamente."
         echo "El código está listo para ser desplegado."
